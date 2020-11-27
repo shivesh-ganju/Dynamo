@@ -10,7 +10,7 @@ class VectorClock:
         for key in self.clock:
             if key not in other.clock:
                 return False
-            if self.clock[key]>=other.clock[key]:
+            if self.clock[key]>other.clock[key]:
                 return False
         return True
 
@@ -57,3 +57,9 @@ class VectorClock:
         new_clock = VectorClock()
         new_clock.clock=result
         return new_clock
+
+    def __str__(self):
+        return str(self.clock)
+
+    def __hash__(self):
+        return hash(str(self))

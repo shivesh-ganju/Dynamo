@@ -13,12 +13,17 @@ class Messaging:
     @staticmethod
     def broadcast_put(from_node,node_list,msg):
         if(len(node_list)==0):
-            return 0
+            if len(HISTORY.get(msg.request,set())) <from_node.W:
+                print("FAILURE")
+            elif REQUESTS.get(msg.request,False)==True:
+                print("SUCCESS")
+            return
+
         msg = Request("STORE",msg.key,msg.value,generate_random_number())
         nodes=[]
         for node in node_list:
             nodes.append(node.id)
-            print("Preference list="+node.id+msg.action)
+            print("Preference list="+node.id+msg.action + "from "+from_node.id +" "+str(msg.key)+":"+str(msg.value[0]))
             Messaging.send_message(from_node,node.id,msg)
         cur_time = time.time()
         while int(time.time() - cur_time) < 3:

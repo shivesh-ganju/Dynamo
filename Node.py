@@ -61,6 +61,8 @@ class Node(Thread):
             if keys[i] not in self.kv:
                 self.kv[keys[i]]=[]
             self.kv[keys[i]].append(values[i])
+        for key in keys:
+            self.kv[key] = self.perform_syntactic_reconcilation(self.kv[key])
         print(self.id+" "+str(self.kv))
 
     def checkIfAlive(self):
@@ -77,7 +79,6 @@ class Node(Thread):
         preference_list = self.hash_ring.get_node(key,self.failed_nodes)
         if(self not in preference_list):
             coordinator = preference_list[0].id
-            print("Not a coord")
             dict = Request("FORWARD-PUT",dict.key,dict.value,generate_random_number())
             Messaging.send_message(self,coordinator,dict)
             time.sleep(3)
@@ -94,21 +95,29 @@ class Node(Thread):
             dict.value = (dict.value,metadata)
             dict.request=generate_random_number()
             Messaging.broadcast_put(self,preference_list,dict)
-            # if dict.key not in self.kv:
-            #     self.kv[dict.key] = list()
-            # self.kv[dict.key].append(dict.value)
-            print(self.id+" "+str(self.kv))
+
+    def perform_syntactic_reconcilation(self,list):
+        dict = {}
+        clocks=[]
+        for value,clock in list:
+            dict[clock]=value
+            clocks.append(clock)
+        result = self.vector_clock.combine(clocks)
+        final_result=[]
+        for clock in result:
+            final_result.append((dict[clock],clock))
+        return final_result
 
     def perform_store(self,data):
         dict = data[0]
         addr=data[1]
-        if self.vector_clock > dict.value[1]:
-            return
+        self.vector_clock.update(self.id,self.get_sequence_no())
+        self.vector_clock=self.vector_clock.converge([self.vector_clock,dict.value[1]])
         if dict.key not in self.kv:
             self.kv[dict.key]=list()
         self.kv[dict.key].append(dict.value)
-        self.vector_clock=self.vector_clock.converge([self.vector_clock,dict.value[1]])
-        dict = Request("ACK-PUT",dict.key,dict.value,dict.request)
+        self.kv[dict.key]=self.perform_syntactic_reconcilation(self.kv[dict.key])
+        dict = Request("ACK-PUT",None,None,dict.request)
         Messaging.send_message(self,PORT_TO_ID[addr[1]],dict)
 
     def perform_get(self,dict):
@@ -116,7 +125,6 @@ class Node(Thread):
         preference_list = self.hash_ring.get_node(key,self.failed_nodes)
         if(self not in preference_list):
             coordinator = preference_list[0].id
-            print("Not a coord")
             dict = Request("FORWARD-GET", dict.key,dict.value,generate_random_number())
             Messaging.send_message(self, coordinator, dict)
             time.sleep(3)
@@ -124,7 +132,6 @@ class Node(Thread):
                 print("Timedout GET")
                 dict.action="GET"
                 dict.request=generate_random_number()
-                self.socket.settimeout(None)
                 self.failed_nodes.append(coordinator)
                 self.perform_get(dict)
         else:
@@ -141,23 +148,35 @@ class Node(Thread):
         response = Request("ACK-GET",dict.key,val,dict.request)
         Messaging.send_message(self,from_node,response)
 
+    #Utility Print function
+    def string(self,dict):
+        temp="{"
+        for key in dict:
+            temp=temp+","+str(key)+":"
+            temp2="["
+            for val in dict[key]:
+                 temp2+=str(val[0])+","+str(val[1].clock)+","
+            temp2+="]"
+            temp+=temp2
+        temp+="}"
+        return temp
 # Message gets uncompressed first
     def run(self):
         try:
             while True:
                 data,addr = self.socket.recvfrom(MAX_MESSAGE_SIZE)
                 dict = pickle.loads(data)
-                print(self.id + " received data from" + str(addr[1]))
+                # print(self.id + " received data from" + str(addr[1]))
                 if self.state==1:
                     if dict.action=="PUT":
-                        print(self.id+" received PUT "+str(get_ident()))
+                        print(self.id+" received PUT "+str(dict.key)+" "+str(dict.value))
                         thread1 = Thread(target=self.perform_put,args=(dict,))
                         thread1.start()
                     if dict.action=="STORE":
-                        print(self.id + " received STORE")
+                        print(self.id + " received STORE"+str(dict.key)+" "+str(dict.value[0]))
                         thread2 = Thread(target=self.perform_store,args=([dict,addr],))
                         thread2.start()
-                        print(self.id+" "+str(self.kv))
+                        print(self.id+" "+self.string(self.kv))
                     if dict.action=="GET":
                         print(self.id+" Received Get")
                         thread3 = Thread(target=self.perform_get,args=(dict,))
