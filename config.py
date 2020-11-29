@@ -18,6 +18,12 @@ PORT_TO_ID = {
     6000:"E"
 }
 
+CLIENTS = {
+    1: 4444,
+    2: 4800,
+    3: 5000
+}
+
 REQUESTS = {}
 HISTORY = {}
 INF=2**10000

@@ -14,7 +14,6 @@ import math
 MAX_MESSAGE_SIZE=40960
 class Node(Thread):
     def __init__(self,id):
-
         self.vector_clock = VectorClock()
         #state of the process, 1 means alive, 0 means dead
         self.state=1
@@ -38,14 +37,30 @@ class Node(Thread):
         self.failed_nodes=[]
         self.sync_kv={}
         self.check_for_sync=[]
-        self.ping=Thread(target=self.checkIfAlive)
+        self.back=Thread(target=self.background_process)
         self.history={}
         Thread.__init__(self)
-        self.ping.start()
+        self.back.start()
 
     def get_sequence_no(self):
         self.count+=1
         return self.count
+
+    def perform_antientropy(self):
+        for key in self.kv:
+            preference_list = self.hash_ring.get_node(key)
+            for node in preference_list:
+                sync_message = Request("ENTROPY",key,self.kv[key])
+                Messaging.send_message(self,node.id,sync_message)
+
+    def antientropy(self,*data):
+        dict=data[0]
+        if dict.key not in self.kv:
+            self.kv[dict.key]=dict.value
+        else:
+            list_other = self.kv[dict.key]
+            list_other+=dict.value
+            self.kv[dict.key]=self.perform_syntactic_reconcilation(list_other)
 
     def handoff(self):
         for node in self.check_for_sync:
@@ -66,12 +81,17 @@ class Node(Thread):
         print(self.id+" "+str(self.kv))
 
     def checkIfAlive(self):
+        for node in self.failed_nodes:
+            ping = Request("PING", None)
+            Messaging.send_message(self, node, ping)
+
+    def background_process(self):
         while True:
-            self.handoff()
-            for node in self.failed_nodes:
-                ping = Request("PING",None)
-                Messaging.send_message(self,node,ping)
-            time.sleep(1)
+            if self.state == 1:
+                self.handoff()
+                self.checkIfAlive()
+                self.perform_antientropy()
+                time.sleep(1)
 
     def perform_put(self,*data):
         dict = data[0]
@@ -135,9 +155,6 @@ class Node(Thread):
                 self.failed_nodes.append(coordinator)
                 self.perform_get(dict)
         else:
-            self.vector_clock.update(self.id, self.get_sequence_no())
-            metadata = deepcopy(self.vector_clock)
-            dict.value = (dict.value, metadata)
             dict.request = generate_random_number()
             Messaging.broadcast_get(self,preference_list,dict)
 
@@ -199,7 +216,7 @@ class Node(Thread):
                     if dict.action=="FORWARD-GET":
                         print(self.id+"Received Forward")
                         dict.action="GET"
-                        response = Request("ACK-FORWARD-GET",None,dict.request)
+                        response = Request("ACK-FORWARD-GET",None,None,dict.request)
                         self.socket.sendto(pickle.dumps(response),addr)
                         threada = Thread(target=self.perform_get,args=[dict])
                         threada.start()
@@ -240,6 +257,11 @@ class Node(Thread):
                         self.failed_nodes.remove(PORT_TO_ID[addr[1]])
                         print("node" + str(PORT_TO_ID[addr[1]])+" is alive")
                         print("Failed nodes=" + str(self.failed_nodes))
+
+                    if (dict.action == "ENTROPY"):
+                        #print(self.id+" received entropy")
+                        threadb = Thread(target=self.antientropy,args=[dict])
+                        threadb.start()
 
                 else:
                     if dict.action=="REVIVE":

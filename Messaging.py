@@ -53,8 +53,9 @@ class Messaging:
                     if val !=None:
                         result+=val
                 # print([(number,vector.clock) for number,vector in result])
+                result= from_node.perform_syntactic_reconcilation(result)
                 for num,clocks in result:
-                    print(str(num)+" "+str(clocks.clock))
+                    print(str(msg.key)+" "+str(num)+" "+str(clocks.clock))
                 REQUESTS[msg.request]=True
         readers = set([id for id,val in HISTORY[msg.request]])
         failed_nodes = set(nodes)-readers

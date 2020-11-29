@@ -16,7 +16,7 @@ class ConsistentHashRing:
         else:
             raise Exception("Object already created")
 
-    def get_node(self,key,removed_nodes,N=3):
+    def get_node(self,key,removed_nodes=set(),N=3):
         hash_value = hashlib.md5(str(key).encode()).digest()
         index = bisect(self.list,hash_value)
         result_list=[]
