@@ -14,12 +14,12 @@ class Messaging:
     def broadcast_put(from_node,node_list,msg):
         if(len(node_list)==0):
             if len(HISTORY.get(msg.request,set())) <from_node.W:
-                print("FAILURE")
+                from_node.socket.sendto(pickle.dumps("FAILURE"),('localhost',msg.client))
             elif REQUESTS.get(msg.request,False)==True:
-                print("SUCCESS")
+                from_node.socket.sendto(pickle.dumps("SUCCESS"),('localhost',msg.client))
             return
 
-        msg = Request("STORE",msg.key,msg.value,generate_random_number())
+        msg = Request("STORE",msg.key,msg.value,generate_random_number(),msg.client)
         nodes=[]
         for node in node_list:
             nodes.append(node.id)
@@ -27,11 +27,11 @@ class Messaging:
             Messaging.send_message(from_node,node.id,msg)
         cur_time = time.time()
         while int(time.time() - cur_time) < 3:
-            if len(HISTORY.get(msg.request,set())) >=from_node.W:
+            if not REQUESTS.get(msg.request,False) and len(HISTORY.get(msg.request,set())) >=from_node.W:
                 #send client success message
+                from_node.socket.sendto(pickle.dumps("SUCCESS"),('localhost',msg.client))
                 REQUESTS[msg.request]=True
         HISTORY[msg.request].add(from_node.id)
-        print("ERROR" + str(HISTORY[msg.request]))
         failed_nodes = set(nodes) - HISTORY[msg.request]
         from_node.failed_nodes = from_node.failed_nodes + list(failed_nodes)
         print("FAILED NODES "+str(from_node.failed_nodes))
@@ -39,7 +39,11 @@ class Messaging:
 
     @staticmethod
     def broadcast_get(from_node,node_list,msg):
-        msg = Request("FETCH",msg.key,msg.value,generate_random_number())
+        if(len(node_list)==0):
+            if len(HISTORY.get(msg.request,set())) <from_node.W:
+                from_node.socket.sendto(pickle.dumps("FAILURE"),('localhost',msg.client))
+            return
+        msg = Request("FETCH",msg.key,msg.value,generate_random_number(),msg.client)
         nodes=[]
         for node in node_list:
             nodes.append(node.id)
@@ -54,6 +58,7 @@ class Messaging:
                         result+=val
                 # print([(number,vector.clock) for number,vector in result])
                 result= from_node.perform_syntactic_reconcilation(result)
+                from_node.socket.sendto(pickle.dumps(result),('localhost',msg.client))
                 for num,clocks in result:
                     print(str(msg.key)+" "+str(num)+" "+str(clocks.clock))
                 REQUESTS[msg.request]=True

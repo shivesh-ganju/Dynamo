@@ -99,7 +99,7 @@ class Node(Thread):
         preference_list = self.hash_ring.get_node(key,self.failed_nodes)
         if(self not in preference_list):
             coordinator = preference_list[0].id
-            dict = Request("FORWARD-PUT",dict.key,dict.value,generate_random_number())
+            dict = Request("FORWARD-PUT",dict.key,dict.value,generate_random_number(),dict.client)
             Messaging.send_message(self,coordinator,dict)
             time.sleep(3)
             if REQUESTS.get(dict.request,False)!=True:
@@ -112,7 +112,9 @@ class Node(Thread):
         else:
             self.vector_clock.update(self.id,self.get_sequence_no())
             metadata = deepcopy(self.vector_clock)
-            dict.value = (dict.value,metadata)
+            if dict.value[1] > metadata:
+                metadata = dict.value[1]
+            dict.value = (dict.value[0],metadata)
             dict.request=generate_random_number()
             Messaging.broadcast_put(self,preference_list,dict)
 
@@ -145,7 +147,7 @@ class Node(Thread):
         preference_list = self.hash_ring.get_node(key,self.failed_nodes)
         if(self not in preference_list):
             coordinator = preference_list[0].id
-            dict = Request("FORWARD-GET", dict.key,dict.value,generate_random_number())
+            dict = Request("FORWARD-GET", dict.key,dict.value,generate_random_number(),dict.client)
             Messaging.send_message(self, coordinator, dict)
             time.sleep(3)
             if REQUESTS.get(dict.request,False)!=True:
@@ -186,7 +188,7 @@ class Node(Thread):
                 # print(self.id + " received data from" + str(addr[1]))
                 if self.state==1:
                     if dict.action=="PUT":
-                        print(self.id+" received PUT "+str(dict.key)+" "+str(dict.value))
+                        print(self.id+" received PUT "+str(dict.key)+" "+str(dict.value)+" "+str(dict.client))
                         thread1 = Thread(target=self.perform_put,args=(dict,))
                         thread1.start()
                     if dict.action=="STORE":

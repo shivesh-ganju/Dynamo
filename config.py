@@ -27,5 +27,6 @@ CLIENTS = {
 REQUESTS = {}
 HISTORY = {}
 INF=2**10000
+MAX_RETRIES=3
 def generate_random_number():
     return random.randint(0,INF)
