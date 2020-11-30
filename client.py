@@ -32,8 +32,8 @@ class Client:
 
     def get_req(self,key):
         cur_time = time.time()
-        self.get(key,0)
-        print(str(time.time()-cur_time))
+        return self.get(key,0)
+        #print(str(time.time()-cur_time))
 
     def get(self,key,retries=0):
         while retries < MAX_RETRIES:
@@ -47,12 +47,12 @@ class Client:
                     if data:
                         data = pickle.loads(data)
                         if(data=="FAILURE"):
-                            print("FAILURE")
-                            return
+                         #   print("FAILURE")
+                            return -INF
                         result,self.datastore[key]=self.perform_semantic_reconcilation(data)
-                        print(str(result)+" "+str(self.datastore[key].clock))
+                        #print(str(result)+" "+str(self.datastore[key].clock))
                         self.socket.settimeout(None)
-                        return
+                        return result
 
             except Exception:
                 self.socket.settimeout(None)
@@ -60,8 +60,8 @@ class Client:
 
     def put_req(self,key,value):
         cur_time = time.time()
-        self.put(key,value,0)
-        print(str(time.time()-cur_time))
+        return self.put(key,value,0)
+        #print(str(time.time()-cur_time))
 
 
     def put(self,key,value,retries=0):
@@ -77,9 +77,8 @@ class Client:
                 while True:
                     data, addr = self.socket.recvfrom(40960)
                     if data:
-                        print(pickle.loads(data))
                         self.socket.settimeout(None)
-                        return
+                        return pickle.loads(data)
             except Exception:
                 self.socket.settimeout(None)
                 retries += 1
@@ -94,7 +93,7 @@ class Client:
         dragonsblood = Request("REVIVE", None)
         Messaging.send_message(self, node, dragonsblood)
 
-client = Client(1)
-client.put_req('x',1)
-time.sleep(1)
-client.get_req('x')
+# client = Client(1)
+# client.put_req('x',1)
+# time.sleep(1)
+# client.get_req('x')
