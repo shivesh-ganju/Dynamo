@@ -39,7 +39,7 @@ class Client:
         while retries < MAX_RETRIES:
             get_request = Request("GET",key,None,None,self.port)
             dynamo_node = self.nodes[random.randint(0,len(self.nodes)-1)]
-            self.socket.settimeout(3)
+            self.socket.settimeout(5)
             Messaging.send_message(self,dynamo_node,get_request)
             try:
                 while True:
@@ -69,9 +69,11 @@ class Client:
             dynamo_node = self.nodes[random.randint(0, len(self.nodes)-1)]
             vc = VectorClock()
             vc.update(dynamo_node,0)
-            value = (value,self.datastore.get(key,vc))
-            put_request = Request("PUT",key,value,None,self.port)
-            self.socket.settimeout(3)
+            value1 = (value,self.datastore.get(key,vc))
+            #print("Client value is "+str(value1))
+            put_request = Request("PUT",key,value1,None,self.port)
+
+            self.socket.settimeout(5)
             Messaging.send_message(self, dynamo_node, put_request)
             try:
                 while True:
@@ -88,6 +90,7 @@ class Client:
             node = self.nodes[random.randint(0,len(self.nodes)-1)]
         kill_switch = Request("EXIT",None)
         Messaging.send_message(self, node, kill_switch)
+        return node
 
     def resurrect(self,node):
         dragonsblood = Request("REVIVE", None)

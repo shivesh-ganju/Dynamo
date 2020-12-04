@@ -23,7 +23,7 @@ class Messaging:
         nodes=[]
         for node in node_list:
             nodes.append(node.id)
-            print("Preference list="+node.id+msg.action + "from "+from_node.id +" "+str(msg.key)+":"+str(msg.value[0]))
+            #print("Preference list="+node.id+msg.action + "from "+from_node.id +" "+str(msg.key)+":"+str(msg.value[0]))
             Messaging.send_message(from_node,node.id,msg)
         cur_time = time.time()
         while int(time.time() - cur_time) < 3:
@@ -31,10 +31,10 @@ class Messaging:
                 #send client success message
                 from_node.socket.sendto(pickle.dumps("SUCCESS"),('localhost',msg.client))
                 REQUESTS[msg.request]=True
-        HISTORY[msg.request].add(from_node.id)
+        HISTORY.get(msg.request,set()).add(from_node.id)
         failed_nodes = set(nodes) - HISTORY[msg.request]
         from_node.failed_nodes = from_node.failed_nodes + list(failed_nodes)
-        print("FAILED NODES "+str(from_node.failed_nodes))
+        #print("FAILED NODES "+str(from_node.failed_nodes))
         Messaging.retry_put_request(from_node, failed_nodes, msg, HISTORY[msg.request])
 
     @staticmethod
@@ -47,7 +47,7 @@ class Messaging:
         nodes=[]
         for node in node_list:
             nodes.append(node.id)
-            print("Preference list="+node.id+msg.action)
+            #print("Preference list="+node.id+msg.action)
             Messaging.send_message(from_node,node.id,msg)
         cur_time = time.time()
         while int(time.time() - cur_time) < 3:
@@ -56,11 +56,11 @@ class Messaging:
                 for id,val in HISTORY[msg.request]:
                     if val !=None:
                         result+=val
-                # print([(number,vector.clock) for number,vector in result])
+                #print([(number,vector.clock) for number,vector in result])
                 result= from_node.perform_syntactic_reconcilation(result)
                 from_node.socket.sendto(pickle.dumps(result),('localhost',msg.client))
-                for num,clocks in result:
-                    print(str(msg.key)+" "+str(num)+" "+str(clocks.clock))
+                #for num,clocks in result:
+                 #   print(str(msg.key)+" "+str(num)+" "+str(clocks.clock))
                 REQUESTS[msg.request]=True
         readers = set([id for id,val in HISTORY[msg.request]])
         failed_nodes = set(nodes)-readers
@@ -76,7 +76,7 @@ class Messaging:
        for node in preference_list:
            if node.id not in writers:
                new_preference_list.append(node)
-       print("NEW LIST="+str(new_preference_list))
+       #print("NEW LIST="+str(new_preference_list))
        for node in new_preference_list:
            node.check_for_sync=node.check_for_sync+list(failed_nodes)
            for fail in failed_nodes:
@@ -96,7 +96,7 @@ class Messaging:
        for node in preference_list:
            if node.id not in writers:
                new_preference_list.append(node)
-       print("NEW LIST="+str(new_preference_list))
+       #print("NEW LIST="+str(new_preference_list))
        return Messaging.broadcast_get(from_node,new_preference_list,msg)
 
 
